@@ -1,0 +1,97 @@
+<!--
+
+Change the API URL in line 49
+
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Sample Client</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+     crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+     crossorigin=""></script>
+    <style>
+        body {
+            margin: 0;
+        }
+        #map {
+            width: 100vw;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <div id="map"></div>
+    </main>
+    <script>
+        // Variables for later
+        var json;
+        var vehicles = [];
+        
+        // Initialize Map
+        // Using Leaflet, and OpenStreetMap as Tile Provider, you can change the tileLayer URL to change Tile Provider
+        var map = L.map('map').setView([0,0], 1);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: 'Vehicle Tracing API by DeltaGamesYT<br>Tiles &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(map);
+        
+        // Function to get vehicles and place icons
+        function getVehicles(){
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', 'http://localhost/get_all_vehicles.php?passkey=client_example', true);
+            xhr.onload = () => {
+                if(xhr.status >= 200 && xhr.status < 300){
+                    //alert(xhr.response) - This alert() can be used for debugging
+                    json = JSON.parse(xhr.response);
+                    vehicles.forEach(item => {
+                        item.remove();
+                    });
+                    json.forEach(item => {
+                        const marker = L.marker([item.latitude, item.longitude]);
+                        const last_update = new Date(Number(item.last_update) * 1000);
+                        // Date Format: DD/MM/YYYY, Time Format: HH:MM:SS
+                        const date_format = `${last_update.getDate().toString().padStart(2, 0)}/${(last_update.getMonth() + 1).toString().padStart(2, 0)}/${last_update.getFullYear()} ${last_update.getHours().toString().padStart(2,0)}:${last_update.getMinutes().toString().padStart(2, 0)}:${last_update.getSeconds().toString().padStart(2, 0)}`;
+                        marker.bindPopup(`Vehicle ID: <strong>${item.vehicle_id}</strong><br>Last location update: ${date_format}`);
+                        marker.addTo(map);
+                        vehicles.push(marker);
+                    });
+                    if(vehicles.length === 0){
+                        alert("No vehicles found!");
+                    }
+                } else {
+                    alert(`There's an error: ${xhr.status} - ${xhr.statusText}\n\n If you think it is necessary, you can leave your issue at https://github.com/deltagamesyt/simple-vehicle-tracing/issues`);
+                }
+            };
+            xhr.onerror = () => {
+                alert('Connection error\n\nCheck your internet connection and the API URL. If the problem persists, please leave your issue on https://github.com/deltagamesyt/simple-vehicle-tracing/issues');
+            };
+            xhr.send();
+        }
+        
+        // First Call
+        getVehicles();
+        // Update Interval (1 minute)
+        var interval = setInterval(getVehicles, 60000);
+        
+        // Update notification
+        // We recommend that you always have the latest version available, but if for some reason you don't want to update, you can comment this part of the code so that the update notification is not displayed.
+        const update_xhr = new XMLHttpRequest();
+        update_xhr.open('GET', 'https://raw.githubusercontent.com/DeltaGamesYT/simple-vehicle-tracing/refs/heads/main/update.json', true);
+        update_xhr.onload = () => {
+            const update_json = JSON.parse(update_xhr.response);
+            if(update_json.latest != "1.0.0"){
+                alert(`New version available: ${update_json.latest}\n\nReleased: ${update_json.release_date}\nChanges: ${update_json.changes}\n\nPlease update the software to the latest version, it prevents bugs or security issues.`);
+            }
+        };
+        update_xhr.send();
+    </script>
+</body>
+</html>
